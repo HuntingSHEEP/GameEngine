@@ -118,6 +118,9 @@ int z = 1;
 int x = 40;
 int y = 40;
 
+int xOffset = -10;
+int yOffset = -50;
+
 Line kreska = Line(Point(40, 40), Point(400, 160));
 Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
@@ -152,17 +155,8 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
 
 
     //draw to me the LINE
-    kreska.drawMe(cr, &color);
     celownik.drawMe(cr, &color);
-    /*
-    color = { 0,0,1,1};
-    cairo_move_to(cr, x, y);
-    cairo_line_to(cr, 400, 160);
-    cairo_close_path(cr);
-    cairo_stroke_preserve(cr);
-    gdk_cairo_set_source_rgba (cr, &color);
-    cairo_fill(cr);
-     */
+
 
     gtk_widget_queue_draw(widget);
     return FALSE;
@@ -177,22 +171,23 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
 }
 
 gboolean wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
-    cout<<"Wciśnięto guzik: "<<event->keyval<<"; leftArrow: "<<GDK_KEY_leftarrow<<endl;
+    //cout<<"keyval: "<<event->keyval<<"; hardware_keycode :"<<event->hardware_keycode<<"; string :"<<event->string<<";state : "<<event->state<<"; group :"<<event->group <<";  w:  "<<GDK_KEY_w<<endl;
 
-    if(event->keyval == GDK_KEY_space){
-        z--;
-        return true;
-    }else if(event->keyval == 65362){
+
+    if(event->keyval == GDK_KEY_w){
         z-=5;
-        return true;
-    }else if(event->keyval == 65364){
+    }else if(event->keyval == GDK_KEY_s){
         z+=5;
-        return true;
-    }else if(event->keyval == 65361){
+    }
+
+    if(event->keyval == GDK_KEY_a){
         n-=5;
-        return true;
-    }else if(event->keyval == 65363){
+    }else if(event->keyval == GDK_KEY_d){
         n+=5;
+    }
+
+    if(event->hardware_keycode == 16){
+        cout<<"MOUSE CLICKED"<<endl;
         return true;
     }
 
@@ -203,11 +198,12 @@ static gboolean mouse_moved(GtkWidget *widget,GdkEvent *event, gpointer user_dat
 
     if (event->type==GDK_MOTION_NOTIFY) {
         GdkEventMotion* e=(GdkEventMotion*)event;
-        printf("Coordinates: (%u,%u)\n", (guint)e->x,(guint)e->y);
-        x = (guint)e->x;
-        y = (guint)e->y;
-        kreska.aPoint.setPosition((guint)e->x, (guint)e->y);
-        celownik.setPosition((guint) e->x, (guint) e->y);
+        //printf("Coordinates: (%u,%u)\n", (guint)e->x,(guint)e->y);
+        x = (guint)e->x + xOffset;
+        y = (guint)e->y + yOffset;
+
+        kreska.aPoint.setPosition(x,y);
+        celownik.setPosition(x,y);
         return true;
     }
     return false;
@@ -241,15 +237,15 @@ int main (int argc, char *argv[]) {
     gtk_fixed_put(GTK_FIXED(kontener), drawing_area, 10, 50);
 
     //OBSŁUGA KLAWIATURY
-
     gtk_widget_add_events(okno, GDK_KEY_PRESS_MASK);
     g_signal_connect(G_OBJECT(okno), "key_press_event", G_CALLBACK(wcisnietoGuzik), NULL);
 
 
     //obsługa myszy
-
     g_signal_connect (G_OBJECT (okno), "motion-notify-event",G_CALLBACK (mouse_moved), NULL);
-    gtk_widget_set_events(okno, GDK_POINTER_MOTION_MASK);
+    g_signal_connect (G_OBJECT (okno), "button-press-event",G_CALLBACK (wcisnietoGuzik), NULL);
+
+    gtk_widget_set_events(okno, GDK_POINTER_MOTION_MASK|GDK_BUTTON_PRESS_MASK|GDK_KEY_PRESS_MASK );
 
 
     gtk_fixed_put(GTK_FIXED(kontener), przycisk, 100, 50);
