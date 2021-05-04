@@ -1,13 +1,125 @@
+/*
+ * sudo apt install libgtk-3-dev
+ */
+
 #include <gtk/gtk.h>
 #include <iostream>
 
 using namespace std;
+
+class Point{
+    public:
+        double x;
+        double y;
+
+        Point(){
+            this->x = 0;
+            this->y = 0;
+        }
+
+        Point(double x, double y){
+            this->x = x;
+            this->y = y;
+        }
+
+        void setPosition(double x, double y){
+            this->x = x;
+            this->y = y;
+        }
+
+    private:
+};
+
+class Line{
+    public:
+        Point aPoint, bPoint;
+
+        Line(){
+            this->aPoint = Point();
+            this->bPoint = Point();
+        }
+
+        Line(Point A, Point B){
+            this->aPoint = A;
+            this->bPoint = B;
+        }
+
+        void drawMe(cairo_t *cr, GdkRGBA *color){
+            //TODO >> SET COLOR METHOD?
+
+            cairo_move_to(cr, aPoint.x, aPoint.y);
+            cairo_line_to(cr, bPoint.x, bPoint.y);
+            cairo_close_path(cr);
+            cairo_stroke_preserve(cr);
+            gdk_cairo_set_source_rgba (cr, color);
+            cairo_fill(cr);
+        }
+};
+
+class Crosshair{
+    public:
+        int R, r;
+        Point middlePoint;
+
+        Crosshair(Point middlePoint, int R, int r){
+            this->middlePoint = middlePoint;
+            this->R = R;
+            this->r = r;
+            setupLines();
+        }
+
+        void setPosition(Point p){
+            this->middlePoint.setPosition(p.x, p.y);
+            updateLines();
+        }
+
+        void setPosition(double x, double y){
+            this->middlePoint.setPosition(x, y);
+            updateLines();
+        }
+
+        void drawMe(cairo_t *cr, GdkRGBA *color){
+            lineZero.drawMe(cr, color);
+            lineOne.drawMe(cr, color);
+            lineTwo.drawMe(cr, color);
+            lineThree.drawMe(cr, color);
+        }
+
+
+    private:
+        Line lineZero, lineOne, lineTwo, lineThree;
+
+        void setupLines(){
+            lineZero = Line(Point(middlePoint.x, middlePoint.y-r), Point(middlePoint.x, middlePoint.y-R));
+            lineOne = Line(Point(middlePoint.x+r, middlePoint.y), Point(middlePoint.x+R, middlePoint.y));
+            lineTwo = Line(Point(middlePoint.x, middlePoint.y+r), Point(middlePoint.x, middlePoint.y+R));
+            lineThree = Line(Point(middlePoint.x-r, middlePoint.y), Point(middlePoint.x-R, middlePoint.y));
+        }
+
+        void updateLines(){
+            //UPDATE THE UPPER VERTICAL LINE
+            lineZero.aPoint.setPosition(middlePoint.x, middlePoint.y-r);
+            lineZero.bPoint.setPosition(middlePoint.x, middlePoint.y-R);
+            //UPDATE THE RIGHT HORIZONTAL LINE
+            lineOne.aPoint.setPosition(middlePoint.x+r, middlePoint.y);
+            lineOne.bPoint.setPosition(middlePoint.x+R, middlePoint.y);
+            //UPDATE THE LOWER VERTICAL LINE
+            lineTwo.aPoint.setPosition(middlePoint.x, middlePoint.y+r);
+            lineTwo.bPoint.setPosition(middlePoint.x, middlePoint.y+R);
+            //UPDATE THE LEFT HORIZONTAL LINE
+            lineThree.aPoint.setPosition(middlePoint.x-r, middlePoint.y);
+            lineThree.bPoint.setPosition(middlePoint.x-R, middlePoint.y);
+        }
+};
 
 int n = 1;
 int z = 1;
 
 int x = 40;
 int y = 40;
+
+Line kreska = Line(Point(40, 40), Point(400, 160));
+Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
 void wyswietlaniePozycjiOkna(GtkWindow *okno, GdkEvent *zdarzenie, gpointer dane){
     int x, y;
@@ -38,12 +150,19 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
     gdk_cairo_set_source_rgba (cr, &color);
     cairo_fill (cr);
 
+
+    //draw to me the LINE
+    kreska.drawMe(cr, &color);
+    celownik.drawMe(cr, &color);
+    /*
+    color = { 0,0,1,1};
     cairo_move_to(cr, x, y);
     cairo_line_to(cr, 400, 160);
     cairo_close_path(cr);
-
     cairo_stroke_preserve(cr);
+    gdk_cairo_set_source_rgba (cr, &color);
     cairo_fill(cr);
+     */
 
     gtk_widget_queue_draw(widget);
     return FALSE;
@@ -87,7 +206,11 @@ static gboolean mouse_moved(GtkWidget *widget,GdkEvent *event, gpointer user_dat
         printf("Coordinates: (%u,%u)\n", (guint)e->x,(guint)e->y);
         x = (guint)e->x;
         y = (guint)e->y;
+        kreska.aPoint.setPosition((guint)e->x, (guint)e->y);
+        celownik.setPosition((guint) e->x, (guint) e->y);
+        return true;
     }
+    return false;
 }
 
 int main (int argc, char *argv[]) {
