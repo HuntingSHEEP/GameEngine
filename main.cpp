@@ -4,6 +4,9 @@
 
 #include <gtk/gtk.h>
 #include <iostream>
+#include <thread>
+#include<unistd.h>
+
 
 using namespace std;
 
@@ -136,6 +139,7 @@ void wyswietlaniePozycjiOkna(GtkWindow *okno, GdkEvent *zdarzenie, gpointer dane
 
 gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
 {
+
     guint width, height;
     GdkRGBA color = { 1,1,1,1};
 
@@ -170,28 +174,105 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
     //cout<<*pn<<endl;
 }
 
-gboolean wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
-    //cout<<"keyval: "<<event->keyval<<"; hardware_keycode :"<<event->hardware_keycode<<"; string :"<<event->string<<";state : "<<event->state<<"; group :"<<event->group <<";  w:  "<<GDK_KEY_w<<endl;
+bool wPressed = false;
+bool dPressed = false;
+bool sPressed = false;
+bool aPressed = false;
+
+[[noreturn]] void silnikFizyki(){
+    unsigned int microsecond = 1000;
+
+    int skok = 1;
+
+    while(true){
+
+        if(wPressed){
+            z -= skok;
+        }else if(sPressed){
+            z += skok;
+        }
+
+        if(dPressed){
+            n+=skok;
+        }else if(aPressed){
+            n -= skok;
+        }
 
 
-    if(event->keyval == GDK_KEY_w){
-        z-=5;
-    }else if(event->keyval == GDK_KEY_s){
-        z+=5;
+
+        //cout<<"BEEEE"<<endl;
+        usleep(5 * microsecond);//sleeps for 3 second
     }
 
-    if(event->keyval == GDK_KEY_a){
-        n-=5;
-    }else if(event->keyval == GDK_KEY_d){
-        n+=5;
+}
+
+
+void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
+    //cout<<"keyval: "<<event->keyval<<"; hardware_keycode :"<<event->hardware_keycode<<"; string :"<<event->string<<";state : "<<event->state<<"; group :"<<event->group <<";  w:  "<<GDK_KEY_w<<endl;
+
+    if(event->keyval == GDK_KEY_w){
+        //z-=5;
+        wPressed = true;
+    }
+
+    if(event->keyval == GDK_KEY_s){
+        //z+=5;
+        sPressed = true;
+    }
+
+    if(event->keyval == GDK_KEY_a) {
+        //n -= 5;
+        aPressed = true;
+    }
+
+    if(event->keyval == GDK_KEY_d){
+        //n+=5;
+        dPressed = true;
     }
 
     if(event->hardware_keycode == 16){
         cout<<"MOUSE CLICKED"<<endl;
-        return true;
     }
 
-    return false;
+    /*
+    if(wPressed){
+        z -= 5;
+    }else if(sPressed){
+        z += 5;
+    }
+
+    if(dPressed){
+        n+=5;
+    }else if(aPressed){
+        n -= 5;aa
+    }
+     */
+
+}
+
+void puszczonoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
+    cout<<"puszczono guzik"<<event->keyval<<endl;
+
+    if(event->keyval == GDK_KEY_w){
+        //z-=5;
+        wPressed = false;
+    }
+
+    if(event->keyval == GDK_KEY_s){
+        //z+=5;
+        sPressed = false;
+    }
+
+    if(event->keyval == GDK_KEY_a) {
+        //n -= 5;
+        aPressed = false;
+    }
+
+    if(event->keyval == GDK_KEY_d){
+        //n+=5;
+        dPressed = false;
+    }
+
 }
 
 static gboolean mouse_moved(GtkWidget *widget,GdkEvent *event, gpointer user_data) {
@@ -239,6 +320,7 @@ int main (int argc, char *argv[]) {
     //OBSŁUGA KLAWIATURY
     gtk_widget_add_events(okno, GDK_KEY_PRESS_MASK);
     g_signal_connect(G_OBJECT(okno), "key_press_event", G_CALLBACK(wcisnietoGuzik), NULL);
+    g_signal_connect(G_OBJECT(okno), "key_release_event", G_CALLBACK(puszczonoGuzik), NULL);
 
 
     //obsługa myszy
@@ -251,6 +333,13 @@ int main (int argc, char *argv[]) {
     gtk_fixed_put(GTK_FIXED(kontener), przycisk, 100, 50);
 
     gtk_widget_show_all(okno);
+
+
+    std::thread silnik(&silnikFizyki);
+    //silnik.join();
+    cout<<"uruchomiono wątek, niby"<<endl;
+
+
     gtk_main();
     return 0;
 }
