@@ -124,6 +124,13 @@ int y = 40;
 int xOffset = -10;
 int yOffset = -50;
 
+double t = 0;
+double v0 = 0;
+double a = 1;
+
+double xk = 700;
+double yk = 50;
+
 Line kreska = Line(Point(40, 40), Point(400, 160));
 Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
@@ -153,7 +160,7 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
     cairo_fill (cr);
 
     color = { 0,0,1,1};
-    cairo_rectangle(cr, 10+n, 500+z, 50, 50);
+    cairo_rectangle(cr, xk, yk, 50, 50);
     gdk_cairo_set_source_rgba (cr, &color);
     cairo_fill (cr);
 
@@ -180,28 +187,34 @@ bool sPressed = false;
 bool aPressed = false;
 
 [[noreturn]] void silnikFizyki(){
-    unsigned int microsecond = 1000;
+    double microsecond = 5*1000;
+    double deltaTime = 1000000/microsecond;
 
     int skok = 1;
 
     while(true){
 
         if(wPressed){
-            z -= skok;
+            yk -= skok;
         }else if(sPressed){
-            z += skok;
+            yk += skok;
         }
 
         if(dPressed){
-            n+=skok;
+            xk+=skok;
         }else if(aPressed){
-            n -= skok;
+            xk-= skok;
         }
+
+
+        t += microsecond/1000000;
+        yk = yk + v0*t + (a/2)*t*t;
+        cout<<yk<<endl;
 
 
 
         //cout<<"BEEEE"<<endl;
-        usleep(5 * microsecond);//sleeps for 3 second
+        usleep( microsecond);//sleeps for 3 second
     }
 
 }
