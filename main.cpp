@@ -11,6 +11,20 @@
 
 using namespace std;
 
+double modulo(double a){
+    if(0 <= a){
+        return a;
+    }else{
+        return -a;
+    }
+}
+
+int signum(double a){
+    if(0 < a){return 1;}
+    else if(a == 0){return 0;}
+    else{return -1;}
+}
+
 class Point{
     public:
         double x;
@@ -125,6 +139,11 @@ class Crosshair{
 class Vector{
 public:
     double x, y, z;
+    bool X, Y, Z;
+
+    Vector(){
+
+    }
 
     Vector(double x, double y){
         this->x = x;
@@ -163,7 +182,7 @@ public:
 
 class Object{
 public:
-    int width, height;
+    double width, height;
     Point leftUpperVertex;
 
     void setPosition(Point p){
@@ -185,10 +204,39 @@ public:
 
 };
 
+class MovementAxis{
+public:
+    bool x, y, z;
+
+    MovementAxis(){
+        this->x = true;
+        this->y = true;
+        this->z = true;
+    }
+
+    MovementAxis(bool x, bool y, bool z){
+        this->x = true;
+        this->y = true;
+        this->z = true;
+    }
+
+
+};
+
 class PhysicComponent: public Object{
 public:
     Vector v, a;
-    PhysicComponent(Vector v, Vector a) : v(v), a(a){}
+
+   // PhysicComponent(Vector v, Vector a) : v(v), a(a){}
+
+    PhysicComponent(){
+
+    }
+
+    PhysicComponent(Vector v, Vector a){
+        this->a = a;
+        this->v = v;
+    }
 
     void addForce(Vector vector){
         v.add(vector);
@@ -219,22 +267,42 @@ public:
 class Rectangle: public PhysicComponent{
 public:
 
-    Rectangle(int width, int height)
-        : PhysicComponent(Vector(0, 0, 0), Vector(0, 0))
-    {
+    Line bounds[4];
 
+    Rectangle(int width, int height)
+     //   : PhysicComponent(Vector(0, 0, 0), Vector(0, 0))
+    {
         this->width = width;
         this->height = height;
         this->leftUpperVertex = Point(0, 0);
 
+        Line a = Line(leftUpperVertex, Point(width, 0));
+        Line b = Line(Point(width, 0), Point(width, height));
+        Line c = Line(Point(width, height), Point(0, height));
+        Line d = Line(Point(0, height), Point(0,0));
+
+        this->bounds[0] = a;
+        this->bounds[1] = b;
+        this->bounds[2] = c;
+        this->bounds[3] = d;
     }
 
     Rectangle(int width, int height, Point leftUpperVertex)
-        : PhysicComponent(Vector(0, 0, 0), Vector(0, 0))
+       // : PhysicComponent(Vector(0, 0, 0), Vector(0, 0))
     {
         this->width = width;
         this->height = height;
         this->leftUpperVertex = leftUpperVertex;
+
+        Line a = Line(leftUpperVertex, Point(leftUpperVertex.x+width, leftUpperVertex.y));
+        Line b = Line(Point(leftUpperVertex.x+width, leftUpperVertex.y), Point(leftUpperVertex.x+width, leftUpperVertex.y + height));
+        Line c = Line(Point(leftUpperVertex.x+width, leftUpperVertex.y + height), Point(leftUpperVertex.x, leftUpperVertex.y + height));
+        Line d = Line(Point(leftUpperVertex.x, leftUpperVertex.y + height), leftUpperVertex);
+
+        this->bounds[0] = a;
+        this->bounds[1] = b;
+        this->bounds[2] = c;
+        this->bounds[3] = d;
     }
 
 
@@ -244,7 +312,100 @@ public:
         cairo_fill(cr);
     }
 
+    void drawBounds(cairo_t *cr, GdkRGBA *color){
+        GdkRGBA clr = { 1,0.1,0.1,1};
+        bounds[0].drawMe(cr, &clr);
+        for(int i=0; i<4; i++){
+            bounds[i].drawMe(cr, &clr);
+        }
+    }
 
+
+
+    bool collision(Point p){
+        bool w1 = (leftUpperVertex.x <= p.x) & (p.x <= leftUpperVertex.x + width);
+        bool w2 = (leftUpperVertex.y <= p.y) & (p.y <= leftUpperVertex.y + height);
+        return w1 & w2;
+    }
+
+    bool collision(double x, double y){
+        bool w1 = (leftUpperVertex.x <= x) & (x <= leftUpperVertex.x + width);
+        bool w2 = (leftUpperVertex.y <= y) & (y <= leftUpperVertex.y + height);
+        return w1 & w2;
+    }
+
+    Point getMiddle(){
+        double x = this->leftUpperVertex.x + this->width/2;
+        double y = this->leftUpperVertex.y + this->height/2;
+        return Point(x, y);
+    }
+
+    Vector getWeightPointsVector(Rectangle rect){
+        Point a = this->getMiddle();
+        Point b = rect.getMiddle();
+
+        Vector w = Vector(a.x - b.x, a.y - b.y);
+        return w;
+    }
+
+
+
+    bool collision(Rectangle rect){
+        //TODO: KOLIZJA BEZ WIERZCHOŁKÓW WEWNATRZ DRUGIEGO PROSTOKĄTA
+        bool w1 = (collision(rect.leftUpperVertex) || \
+            collision(rect.leftUpperVertex.x + rect.width, rect.leftUpperVertex.y) || \
+            collision(rect.leftUpperVertex.x + rect.width, rect.leftUpperVertex.y + rect.height) || \
+            collision(rect.leftUpperVertex.x, rect.leftUpperVertex.y + rect.height));
+
+        bool w2 = (rect.collision(leftUpperVertex)) ||\
+            rect.collision(leftUpperVertex.x + width, leftUpperVertex.y) ||\
+            rect.collision(leftUpperVertex.x + width, leftUpperVertex.y + height) ||\
+            rect.collision(leftUpperVertex.x , leftUpperVertex.y + height);
+
+
+
+        return w1 || w2;
+    }
+
+
+    void collisionResponse(Rectangle rect) {
+        //wersja mocno oszukana
+        //ODBIJANIE JAK OD GUMY Z MAJTEK!!!
+        Vector w = getWeightPointsVector(rect);
+        Vector qVector = Vector(rect.width/2 + width/2, rect.height/2 + height/2);
+        double q = modulo(qVector.y / qVector.x);
+        double k = modulo(w.y / w.x);
+
+        double bounceScale = 0.1;
+
+        if(q <= k){
+            //REACT ON Y-AXIS
+            if(signum(w.y) == -1){
+                if(0 < v.y){
+                    v.y *= -1 * bounceScale;
+                }
+            }else{
+                if(v.y < 0){
+                    v.y *= -1 * bounceScale;
+                }
+            }
+
+        }else{
+            //REACT ON X-AXIS
+            if(signum(w.x) == -1){
+                if(0 < v.x){
+                    v.x *= -1 * bounceScale;
+                }
+            }else{
+                if(v.x < 0){
+                    v.x *= -1 * bounceScale;
+                }
+            }
+        }
+
+
+
+    }
 };
 
 class Key{
@@ -269,16 +430,15 @@ public:
 
 class Input{
 public:
-    Key wPressed;
-    Key sPressed;
-    Key dPressed;
-    Key aPressed;
+    Key w, s, a, d;
+    Key space;
 
     Input(){
-        wPressed = Key();
-        sPressed = Key();
-        dPressed = Key();
-        aPressed = Key();
+        w = Key();
+        s = Key();
+        d = Key();
+        a = Key();
+        space = Key();
     }
 };
 
@@ -304,7 +464,7 @@ double yk = 50;
 Line kreska = Line(Point(40, 40), Point(400, 160));
 Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
-Rectangle kwadrat = Rectangle(40, 40, Point(400, 200));
+Rectangle platforma = Rectangle(300, 70, Point(300, 500));
 Rectangle kwadrat2 = Rectangle(40, 40, Point(500, 200));
 
 Input klawiatura = Input();
@@ -342,7 +502,10 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
     cairo_fill (cr);
 
 
-    kwadrat.drawMe(cr, &color);
+    color = { 0.1,0.5,0.5,1};
+    platforma.drawMe(cr, &color);
+    platforma.drawBounds(cr, &color);
+
     color = { 1,0,0,1};
     kwadrat2.drawMe(cr, &color);
 
@@ -365,78 +528,78 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
     cout<<"BEE:"<<endl;
     kwadrat2.addAcceleration(Vector(0, -15, 0));
 }
-
+double microsecond = 1000;
+double deltaTime = microsecond/150000;
+int skok = 12;
 
 
 [[noreturn]] void silnikFizyki(){
-    double microsecond = 5*1000;
-    double deltaTime = microsecond/150000;
-    int skok = 10;
+
 
     while(true){
 
         //OŚ PIONOWA
-
-        if(klawiatura.wPressed.isPressed & (!klawiatura.wPressed.pressedAgain) ){
+        if(klawiatura.w.isPressed & (!klawiatura.w.pressedAgain) ){
 
             kwadrat2.addAcceleration(Vector(0, -skok));
-            klawiatura.wPressed.resetDone = false;
-            klawiatura.wPressed.pressedAgain = true;
-            cout<<"do góry"<<endl;
-        }else if(klawiatura.sPressed.isPressed & (! klawiatura.sPressed.pressedAgain)){
+            klawiatura.w.resetDone = false;
+            klawiatura.w.pressedAgain = true;
+            //cout<<"do góry"<<endl;
+        }else if(klawiatura.s.isPressed & (! klawiatura.s.pressedAgain)){
 
             kwadrat2.addAcceleration(Vector(0, skok));
-            klawiatura.sPressed.resetDone = false;
-            klawiatura.sPressed.pressedAgain = true;
-            cout<<"w dół"<<endl;
+            klawiatura.s.resetDone = false;
+            klawiatura.s.pressedAgain = true;
+            //cout<<"w dół"<<endl;
         }
 
         //OŚ POZIOMA
-
-        if(klawiatura.aPressed.isPressed & (!klawiatura.aPressed.pressedAgain) ){
+        if(klawiatura.a.isPressed & (!klawiatura.a.pressedAgain) ){
 
             kwadrat2.addAcceleration(Vector(-skok, 0));
-            klawiatura.aPressed.resetDone = false;
-            klawiatura.aPressed.pressedAgain = true;
-            cout<<"w lewo"<<endl;
-        }else if(klawiatura.dPressed.isPressed & (! klawiatura.dPressed.pressedAgain)){
+            klawiatura.a.resetDone = false;
+            klawiatura.a.pressedAgain = true;
+            //cout<<"w lewo"<<endl;
+        }else if(klawiatura.d.isPressed & (! klawiatura.d.pressedAgain)){
 
             kwadrat2.addAcceleration(Vector( skok, 0));
-            klawiatura.dPressed.resetDone = false;
-            klawiatura.dPressed.pressedAgain = true;
-            cout<<"w prawo"<<endl;
+            klawiatura.d.resetDone = false;
+            klawiatura.d.pressedAgain = true;
+            //cout<<"w prawo"<<endl;
         }
-
-
-
 
         //blok rezygnacji
-
-        if((!klawiatura.wPressed.isPressed) & (!klawiatura.wPressed.resetDone)){
+        if((!klawiatura.w.isPressed) & (!klawiatura.w.resetDone)){
             kwadrat2.addAcceleration(Vector( 0, skok ));
-            klawiatura.wPressed.resetDone = true;
-            cout<<"reset do góry"<<endl;
-        }else if((!klawiatura.sPressed.isPressed) & (!klawiatura.sPressed.resetDone)){
+            klawiatura.w.resetDone = true;
+            //cout<<"reset do góry"<<endl;
+        }else if((!klawiatura.s.isPressed) & (!klawiatura.s.resetDone)){
             kwadrat2.addAcceleration(Vector(0, -skok));
-            klawiatura.sPressed.resetDone = true;
-            cout<<"reset w dół"<<endl;
+            klawiatura.s.resetDone = true;
+            //cout<<"reset w dół"<<endl;
         }
 
 
-        if((!klawiatura.aPressed.isPressed) & (!klawiatura.aPressed.resetDone)){
+        if((!klawiatura.a.isPressed) & (!klawiatura.a.resetDone)){
             kwadrat2.addAcceleration(Vector( skok, 0));
-            klawiatura.aPressed.resetDone = true;
-            cout<<"reset w lewo"<<endl;
-        }else if((!klawiatura.dPressed.isPressed) & (!klawiatura.dPressed.resetDone)){
+            klawiatura.a.resetDone = true;
+            //cout<<"reset w lewo"<<endl;
+        }else if((!klawiatura.d.isPressed) & (!klawiatura.d.resetDone)){
             kwadrat2.addAcceleration(Vector(-skok, 0));
-            klawiatura.dPressed.resetDone = true;
-            cout<<"reset w prawo"<<endl;
+            klawiatura.d.resetDone = true;
+            //cout<<"reset w prawo"<<endl;
         }
 
+
+
+
+        if(kwadrat2.collision(platforma)){
+            kwadrat2.collisionResponse(platforma);
+        }
 
 
         kwadrat2.calculatePhysic(deltaTime);
-        kwadrat.calculatePhysic(deltaTime);
+
 
         usleep( microsecond);//sleeps for 3 second
     }
@@ -446,35 +609,35 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
 
 void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
     if(event->keyval == GDK_KEY_w){
-        if(!klawiatura.wPressed.isPressed){
-            klawiatura.wPressed.isPressed = true;
+        if(!klawiatura.w.isPressed){
+            klawiatura.w.isPressed = true;
         }else{
-            klawiatura.wPressed.pressedAgain = true;
+            klawiatura.w.pressedAgain = true;
         }
 
     }
 
     if(event->keyval == GDK_KEY_s){
-        if(!klawiatura.sPressed.isPressed){
-            klawiatura.sPressed.isPressed = true;
+        if(!klawiatura.s.isPressed){
+            klawiatura.s.isPressed = true;
         }else{
-            klawiatura.sPressed.pressedAgain = true;
+            klawiatura.s.pressedAgain = true;
         }
     }
 
     if(event->keyval == GDK_KEY_a) {
-        if(!klawiatura.aPressed.isPressed){
-            klawiatura.aPressed.isPressed = true;
+        if(!klawiatura.a.isPressed){
+            klawiatura.a.isPressed = true;
         }else{
-            klawiatura.aPressed.pressedAgain = true;
+            klawiatura.a.pressedAgain = true;
         }
     }
 
     if(event->keyval == GDK_KEY_d){
-        if(!klawiatura.dPressed.isPressed){
-            klawiatura.dPressed.isPressed = true;
+        if(!klawiatura.d.isPressed){
+            klawiatura.d.isPressed = true;
         }else{
-            klawiatura.dPressed.pressedAgain = true;
+            klawiatura.d.pressedAgain = true;
         }
     }
 
@@ -488,23 +651,23 @@ void puszczonoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
     //cout<<"puszczono guzik "<<event->keyval<<endl;
 
     if(event->keyval == GDK_KEY_w){
-        klawiatura.wPressed.isPressed = false;
-        klawiatura.wPressed.pressedAgain = false;
+        klawiatura.w.isPressed = false;
+        klawiatura.w.pressedAgain = false;
     }
 
     if(event->keyval == GDK_KEY_s){
-        klawiatura.sPressed.isPressed = false;
-        klawiatura.sPressed.pressedAgain = false;
+        klawiatura.s.isPressed = false;
+        klawiatura.s.pressedAgain = false;
     }
 
     if(event->keyval == GDK_KEY_a) {
-        klawiatura.aPressed.isPressed = false;
-        klawiatura.aPressed.pressedAgain = false;
+        klawiatura.a.isPressed = false;
+        klawiatura.a.pressedAgain = false;
     }
 
     if(event->keyval == GDK_KEY_d){
-        klawiatura.dPressed.isPressed = false;
-        klawiatura.dPressed.pressedAgain = false;
+        klawiatura.d.isPressed = false;
+        klawiatura.d.pressedAgain = false;
     }
 
 }
@@ -529,8 +692,8 @@ int main (int argc, char *argv[]) {
     GtkWidget *kontener, *przycisk;
     gtk_init (&argc, &argv);
 
-    //kwadrat.setGravity(10);
-    //kwadrat2.setGravity(5);
+
+    kwadrat2.setGravity(10);
 
     okno = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     kontener = gtk_fixed_new();
@@ -574,8 +737,6 @@ int main (int argc, char *argv[]) {
 
     std::thread silnik(&silnikFizyki);
     //silnik.join();
-    cout<<"uruchomiono wątek, niby"<<endl;
-
 
     gtk_main();
     return 0;
