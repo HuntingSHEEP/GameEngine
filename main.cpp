@@ -225,7 +225,7 @@ public:
 
 class PhysicComponent: public Object{
 public:
-    Vector v, a;
+    Vector v, a, collision;
 
    // PhysicComponent(Vector v, Vector a) : v(v), a(a){}
 
@@ -236,6 +236,7 @@ public:
     PhysicComponent(Vector v, Vector a){
         this->a = a;
         this->v = v;
+        this->collision = Vector();
     }
 
     void addForce(Vector vector){
@@ -244,6 +245,10 @@ public:
 
     void addAcceleration(Vector vector){
         a.add(vector);
+    }
+
+    void addSpeed(Vector vector){
+        v.add(vector);
     }
 
     void setGravity(double g){
@@ -258,7 +263,8 @@ public:
         double dvx = a.x*deltaTime;
         double dvy = a.y*deltaTime;
         //aktualizacja położenia
-        leftUpperVertex.moveBy(dx, dy);
+        //leftUpperVertex.moveBy(dx, dy);
+        moveBy(dx, dy);
         //aktualizacja prędkości
         v.add(dvx, dvy, 0);
     }
@@ -313,10 +319,9 @@ public:
     }
 
     void drawBounds(cairo_t *cr, GdkRGBA *color){
-        GdkRGBA clr = { 1,0.1,0.1,1};
-        bounds[0].drawMe(cr, &clr);
+        bounds[0].drawMe(cr, color);
         for(int i=0; i<4; i++){
-            bounds[i].drawMe(cr, &clr);
+            bounds[i].drawMe(cr, color);
         }
     }
 
@@ -362,15 +367,12 @@ public:
             rect.collision(leftUpperVertex.x + width, leftUpperVertex.y + height) ||\
             rect.collision(leftUpperVertex.x , leftUpperVertex.y + height);
 
-
-
         return w1 || w2;
     }
 
 
     void collisionResponse(Rectangle rect) {
-        //wersja mocno oszukana
-        //ODBIJANIE JAK OD GUMY Z MAJTEK!!!
+        //wersja mocno uproszczona
         Vector w = getWeightPointsVector(rect);
         Vector qVector = Vector(rect.width/2 + width/2, rect.height/2 + height/2);
         double q = modulo(qVector.y / qVector.x);
@@ -402,8 +404,6 @@ public:
                 }
             }
         }
-
-
 
     }
 };
@@ -464,7 +464,10 @@ double yk = 50;
 Line kreska = Line(Point(40, 40), Point(400, 160));
 Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
-Rectangle platforma = Rectangle(300, 70, Point(300, 500));
+Rectangle platforma = Rectangle(300, 20, Point(100, 300));
+Rectangle platforma1 = Rectangle(500, 20, Point(150, 500));
+Rectangle platforma2 = Rectangle(300, 20, Point(700, 600));
+Rectangle platforma3 = Rectangle(300, 20, Point(300, 700));
 Rectangle kwadrat2 = Rectangle(40, 40, Point(500, 200));
 
 Input klawiatura = Input();
@@ -484,6 +487,7 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
 
     guint width, height;
     GdkRGBA color = { 1,1,1,1};
+    GdkRGBA clr = { 0.1,0.1,0.1,1};
 
     width = gtk_widget_get_allocated_width (widget);
     height = gtk_widget_get_allocated_height (widget);
@@ -501,13 +505,23 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
 
     cairo_fill (cr);
 
-
     color = { 0.1,0.5,0.5,1};
     platforma.drawMe(cr, &color);
-    platforma.drawBounds(cr, &color);
+    platforma.drawBounds(cr, &clr);
+
+    platforma1.drawMe(cr, &color);
+    platforma1.drawBounds(cr, &clr);
+
+    platforma2.drawMe(cr, &color);
+    platforma2.drawBounds(cr, &clr);
+
+    platforma3.drawMe(cr, &color);
+    platforma3.drawBounds(cr, &clr);
 
     color = { 1,0,0,1};
     kwadrat2.drawMe(cr, &color);
+    color = {0.2929,0,0.5, 1};
+    //kwadrat2.drawBounds(cr, &color);
 
     color = { 0,1,1,1};
 
@@ -530,13 +544,20 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
 }
 double microsecond = 1000;
 double deltaTime = microsecond/150000;
-int skok = 12;
+int skok = 20;
 
 
 [[noreturn]] void silnikFizyki(){
 
 
     while(true){
+        //SKAKANIE
+        if(klawiatura.space.isPressed & (!klawiatura.space.pressedAgain) ){
+            kwadrat2.addSpeed(Vector(0, -50));
+            klawiatura.space.resetDone = false;
+            klawiatura.space.pressedAgain = true;
+        }
+
 
         //OŚ PIONOWA
         if(klawiatura.w.isPressed & (!klawiatura.w.pressedAgain) ){
@@ -569,6 +590,7 @@ int skok = 12;
         }
 
         //blok rezygnacji
+
         if((!klawiatura.w.isPressed) & (!klawiatura.w.resetDone)){
             kwadrat2.addAcceleration(Vector( 0, skok ));
             klawiatura.w.resetDone = true;
@@ -596,6 +618,15 @@ int skok = 12;
         if(kwadrat2.collision(platforma)){
             kwadrat2.collisionResponse(platforma);
         }
+        if(kwadrat2.collision(platforma1)){
+            kwadrat2.collisionResponse(platforma1);
+        }
+        if(kwadrat2.collision(platforma2)){
+            kwadrat2.collisionResponse(platforma2);
+        }
+        if(kwadrat2.collision(platforma3)){
+            kwadrat2.collisionResponse(platforma3);
+        }
 
 
         kwadrat2.calculatePhysic(deltaTime);
@@ -608,6 +639,15 @@ int skok = 12;
 
 
 void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
+    if(event->keyval == GDK_KEY_space){
+        if(!klawiatura.space.isPressed){
+            klawiatura.space.isPressed = true;
+        }else{
+            klawiatura.space.pressedAgain = true;
+        }
+
+    }
+
     if(event->keyval == GDK_KEY_w){
         if(!klawiatura.w.isPressed){
             klawiatura.w.isPressed = true;
@@ -649,6 +689,11 @@ void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
 
 void puszczonoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
     //cout<<"puszczono guzik "<<event->keyval<<endl;
+
+    if(event->keyval == GDK_KEY_space){
+        klawiatura.space.isPressed = false;
+        klawiatura.space.pressedAgain = false;
+    }
 
     if(event->keyval == GDK_KEY_w){
         klawiatura.w.isPressed = false;
@@ -693,7 +738,7 @@ int main (int argc, char *argv[]) {
     gtk_init (&argc, &argv);
 
 
-    kwadrat2.setGravity(10);
+    kwadrat2.setGravity(15);
 
     okno = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     kontener = gtk_fixed_new();
@@ -703,7 +748,7 @@ int main (int argc, char *argv[]) {
     g_signal_connect(G_OBJECT(przycisk), "clicked", G_CALLBACK(buttonFunction), &n);
 
     gtk_widget_set_size_request(przycisk, 180, 35);
-    gtk_window_set_default_size(GTK_WINDOW(okno), 1000+10+10, 700+50+10);
+    gtk_window_set_default_size(GTK_WINDOW(okno), 1000+10+10+300, 700+50+10+200);
     gtk_window_set_position(GTK_WINDOW(okno), GTK_WIN_POS_CENTER);
     gtk_window_set_title(GTK_WINDOW(okno), "Dzień dobry");
 
@@ -713,7 +758,7 @@ int main (int argc, char *argv[]) {
     g_signal_connect(G_OBJECT(okno), "configure-event", G_CALLBACK(wyswietlaniePozycjiOkna), NULL);
 
     GtkWidget *drawing_area = gtk_drawing_area_new ();
-    gtk_widget_set_size_request (drawing_area, 1000, 700);
+    gtk_widget_set_size_request (drawing_area, 1000+300, 700+200);
     g_signal_connect (G_OBJECT (drawing_area), "draw",G_CALLBACK (draw_callback), NULL);
     gtk_fixed_put(GTK_FIXED(kontener), drawing_area, 10, 50);
 
