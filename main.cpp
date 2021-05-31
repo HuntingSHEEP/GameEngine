@@ -204,25 +204,6 @@ public:
 
 };
 
-class MovementAxis{
-public:
-    bool x, y, z;
-
-    MovementAxis(){
-        this->x = true;
-        this->y = true;
-        this->z = true;
-    }
-
-    MovementAxis(bool x, bool y, bool z){
-        this->x = true;
-        this->y = true;
-        this->z = true;
-    }
-
-
-};
-
 class PhysicComponent: public Object{
 public:
     Vector v, a, collision;
@@ -325,8 +306,6 @@ public:
         }
     }
 
-
-
     bool collision(Point p){
         bool w1 = (leftUpperVertex.x <= p.x) & (p.x <= leftUpperVertex.x + width);
         bool w2 = (leftUpperVertex.y <= p.y) & (p.y <= leftUpperVertex.y + height);
@@ -353,8 +332,6 @@ public:
         return w;
     }
 
-
-
     bool collision(Rectangle rect){
         //TODO: KOLIZJA BEZ WIERZCHOŁKÓW WEWNATRZ DRUGIEGO PROSTOKĄTA
         bool w1 = (collision(rect.leftUpperVertex) || \
@@ -378,7 +355,7 @@ public:
         double q = modulo(qVector.y / qVector.x);
         double k = modulo(w.y / w.x);
 
-        double bounceScale = 0.1;
+        double bounceScale = 0.3;
 
         if(q <= k){
             //REACT ON Y-AXIS
@@ -454,13 +431,6 @@ int y = 40;
 int xOffset = -10;
 int yOffset = -50;
 
-double t = 0;
-double v0 = 0;
-double a = 1;
-
-double xk = 700;
-double yk = 50;
-
 Line kreska = Line(Point(40, 40), Point(400, 160));
 Crosshair celownik = Crosshair(Point(50, 50), 40, 5);
 
@@ -484,7 +454,6 @@ void wyswietlaniePozycjiOkna(GtkWindow *okno, GdkEvent *zdarzenie, gpointer dane
 
 gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-
     guint width, height;
     GdkRGBA color = { 1,1,1,1};
     GdkRGBA clr = { 0.1,0.1,0.1,1};
@@ -497,7 +466,6 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
     cairo_rectangle(cr, 0, 0, width, height);
     gdk_cairo_set_source_rgba (cr, &color);
     cairo_fill (cr);
-
 
     color = { 0,0,1,1};
     //cairo_rectangle(cr, xk, yk, 50, 50);
@@ -521,10 +489,9 @@ gboolean draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
     color = { 1,0,0,1};
     kwadrat2.drawMe(cr, &color);
     color = {0.2929,0,0.5, 1};
-    //kwadrat2.drawBounds(cr, &color);
+
 
     color = { 0,1,1,1};
-
     //draw to me the LINE
     celownik.drawMe(cr, &color);
 
@@ -537,11 +504,9 @@ void buttonFunction (GtkButton *button, gpointer user_data) /* No extra paramete
 {
     /* you cast to the type of what you passed as last argument of g_signal_connect */
     int *pn = (gint *) user_data;
-    *pn += 10;
-    //cout<<*pn<<endl;
-    cout<<"BEE:"<<endl;
-    kwadrat2.addAcceleration(Vector(0, -15, 0));
+    cout<<*pn<<endl;
 }
+
 double microsecond = 1000;
 double deltaTime = microsecond/150000;
 int skok = 20;
@@ -561,58 +526,43 @@ int skok = 20;
 
         //OŚ PIONOWA
         if(klawiatura.w.isPressed & (!klawiatura.w.pressedAgain) ){
-
             kwadrat2.addAcceleration(Vector(0, -skok));
             klawiatura.w.resetDone = false;
             klawiatura.w.pressedAgain = true;
-            //cout<<"do góry"<<endl;
         }else if(klawiatura.s.isPressed & (! klawiatura.s.pressedAgain)){
-
             kwadrat2.addAcceleration(Vector(0, skok));
             klawiatura.s.resetDone = false;
             klawiatura.s.pressedAgain = true;
-            //cout<<"w dół"<<endl;
         }
 
         //OŚ POZIOMA
         if(klawiatura.a.isPressed & (!klawiatura.a.pressedAgain) ){
-
             kwadrat2.addAcceleration(Vector(-skok, 0));
             klawiatura.a.resetDone = false;
             klawiatura.a.pressedAgain = true;
-            //cout<<"w lewo"<<endl;
         }else if(klawiatura.d.isPressed & (! klawiatura.d.pressedAgain)){
-
             kwadrat2.addAcceleration(Vector( skok, 0));
             klawiatura.d.resetDone = false;
             klawiatura.d.pressedAgain = true;
-            //cout<<"w prawo"<<endl;
         }
 
         //blok rezygnacji
-
         if((!klawiatura.w.isPressed) & (!klawiatura.w.resetDone)){
             kwadrat2.addAcceleration(Vector( 0, skok ));
             klawiatura.w.resetDone = true;
-            //cout<<"reset do góry"<<endl;
         }else if((!klawiatura.s.isPressed) & (!klawiatura.s.resetDone)){
             kwadrat2.addAcceleration(Vector(0, -skok));
             klawiatura.s.resetDone = true;
-            //cout<<"reset w dół"<<endl;
         }
 
 
         if((!klawiatura.a.isPressed) & (!klawiatura.a.resetDone)){
             kwadrat2.addAcceleration(Vector( skok, 0));
             klawiatura.a.resetDone = true;
-            //cout<<"reset w lewo"<<endl;
         }else if((!klawiatura.d.isPressed) & (!klawiatura.d.resetDone)){
             kwadrat2.addAcceleration(Vector(-skok, 0));
             klawiatura.d.resetDone = true;
-            //cout<<"reset w prawo"<<endl;
         }
-
-
 
 
         if(kwadrat2.collision(platforma)){
@@ -628,24 +578,21 @@ int skok = 20;
             kwadrat2.collisionResponse(platforma3);
         }
 
-
         kwadrat2.calculatePhysic(deltaTime);
-
-
-        usleep( microsecond);//sleeps for 3 second
+        usleep(microsecond);
     }
 
 }
 
 
 void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
+    //Obsługa zdarzeń klawiatury
     if(event->keyval == GDK_KEY_space){
         if(!klawiatura.space.isPressed){
             klawiatura.space.isPressed = true;
         }else{
             klawiatura.space.pressedAgain = true;
         }
-
     }
 
     if(event->keyval == GDK_KEY_w){
@@ -654,7 +601,6 @@ void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
         }else{
             klawiatura.w.pressedAgain = true;
         }
-
     }
 
     if(event->keyval == GDK_KEY_s){
@@ -688,8 +634,6 @@ void wcisnietoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
 }
 
 void puszczonoGuzik(GtkWidget *widget, GdkEventKey *event, gpointer data){
-    //cout<<"puszczono guzik "<<event->keyval<<endl;
-
     if(event->keyval == GDK_KEY_space){
         klawiatura.space.isPressed = false;
         klawiatura.space.pressedAgain = false;
@@ -721,7 +665,6 @@ static gboolean mouse_moved(GtkWidget *widget,GdkEvent *event, gpointer user_dat
 
     if (event->type==GDK_MOTION_NOTIFY) {
         GdkEventMotion* e=(GdkEventMotion*)event;
-        //printf("Coordinates: (%u,%u)\n", (guint)e->x,(guint)e->y);
         x = (guint)e->x + xOffset;
         y = (guint)e->y + yOffset;
 
@@ -737,22 +680,17 @@ int main (int argc, char *argv[]) {
     GtkWidget *kontener, *przycisk;
     gtk_init (&argc, &argv);
 
-
     kwadrat2.setGravity(15);
 
     okno = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     kontener = gtk_fixed_new();
     gtk_container_add(GTK_CONTAINER(okno), kontener);
-    przycisk = gtk_button_new_with_label("ELOOPSZ");
-
-    g_signal_connect(G_OBJECT(przycisk), "clicked", G_CALLBACK(buttonFunction), &n);
-
-    gtk_widget_set_size_request(przycisk, 180, 35);
+    //przycisk = gtk_button_new_with_label("ELOOPSZ");
+    //g_signal_connect(G_OBJECT(przycisk), "clicked", G_CALLBACK(buttonFunction), &n);
+    //gtk_widget_set_size_request(przycisk, 180, 35);
     gtk_window_set_default_size(GTK_WINDOW(okno), 1000+10+10+300, 700+50+10+200);
     gtk_window_set_position(GTK_WINDOW(okno), GTK_WIN_POS_CENTER);
     gtk_window_set_title(GTK_WINDOW(okno), "Dzień dobry");
-
-
 
     g_signal_connect(G_OBJECT(okno), "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(G_OBJECT(okno), "configure-event", G_CALLBACK(wyswietlaniePozycjiOkna), NULL);
